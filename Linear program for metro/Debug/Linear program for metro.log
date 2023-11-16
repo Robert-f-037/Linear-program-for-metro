@@ -1,0 +1,13 @@
+﻿  mymain.c
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_vector_alloc，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_vector_free，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_vector_get，函数 _Function_tsum 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_vector_set，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_fminimizer_alloc，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_fminimizer_set，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_fminimizer_free，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_fminimizer_iterate，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_fminimizer_size，函数 _main 中引用了该符号
+mymain.obj : error LNK2019: 无法解析的外部符号 _gsl_multimin_test_size，函数 _main 中引用了该符号
+mymain.obj : error LNK2001: 无法解析的外部符号 _gsl_multimin_fminimizer_nmsimplex
+D:\Mywork\Linear program for metro\Debug\Linear program for metro.exe : fatal error LNK1120: 11 个无法解析的外部命令
