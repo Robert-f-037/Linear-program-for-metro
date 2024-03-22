@@ -5,12 +5,13 @@
 
 #define maxLimit 30
 #define integralNum 1000
+#define maxValue 1e100
 
 /*
 * 下列变量中除了tSum、tSumMax、stationFlowNum、stationSpareNum、beta、
 * departTimeResult、arriveTimeResult均是可编辑数据即前提参数
 */
-int vehicleNum = 28; // 车辆数
+int vehicleNum = 7; // 车辆数
 int stationNum = 29; // 车站数
 double departTime[maxLimit][maxLimit];//离站时间
 double arriveTime[maxLimit][maxLimit];//到站时间
@@ -24,65 +25,45 @@ double arriveTime[maxLimit][maxLimit];//到站时间
 //};//原到站时间
 double departTimePre[maxLimit][maxLimit];//原离站时间
 double arriveTimePre[maxLimit][maxLimit] = {//行为列车，列为站点，元素为时间
-    { -1, -1, -1, -1, -1, 3527 },
-    { 2777 }, 
-    { -1, -1, -1, -1, -1, 4028 },
-    { 3372 }, 
-    { -1, -1, -1, -1, -1, 4711 },
-    { 3911 }, 
-    { -1, -1, -1, -1, -1, 5116 },
-    { 4281 },
-    { -1, -1, -1, -1, -1, 5596 },
-    { 4677 },
-    { -1, -1, -1, -1, -1, 6076 },
-    { 5312 },
-    { -1, -1, -1, -1, -1, 6466 },
-    { 5727 },
-    { 5961 },
-    { 6117 },
-    { 6298 },
-    { 6597 },
-    { 6722 },
-    { -1, -1, -1, -1, -1, 7786 },
-    { 7077 },
-    { 7294 },
-    { 7557 },
-    { 7707 },
-    { 8067 },
-    { 8307 },
-    { 8547 },
-    { 8787 },
+    {6328},
+    {6618},
+    {6880},
+    {7169},
+    {7439},
+    {7738},
+    {8052},
+    {8381},
 };//原到站时间
 int changeable[maxLimit][maxLimit];//决定是突发大客流还是可预见性大客流
 double dwellTime[maxLimit] = {
-    324, 25, 30, 25, 25, 45,
-    25, 55, 25, 30, 30, 25,
-    30, 35, 30, 55, 30,
-    45, 35, 55, 30, 30, 25,
-    50, 40, 50, 30, 25, 45
+    45,25,30,50,40,50,
+    25,30,30,55,35,45,
+    30,55,30,35,30,25,
+    30,30,25,55,25,45,
+    25,25,30,25,30
 };//停站时间
 double dwellSpareTime[maxLimit] = {
-    324, 25, 30, 25, 25, 45,
-    25, 55, 25, 30, 30, 25,
-    30, 35, 30, 55, 30,
-    45, 35, 55, 30, 30, 25,
-    50, 40, 50, 30, 25, 45
+    45,25,30,50,40,50,
+    25,30,30,55,35,45,
+    30,55,30,35,30,25,
+    30,30,25,55,25,45,
+    25,25,30,25,30
 };//备用车停站时间
 double runTime[maxLimit] = {
-    196, 106, 125, 167, 138, 134,
-    96, 109, 105, 105, 94, 99,
-    101, 95, 91, 88, 86, 192,
-    150, 114, 135, 87, 210,
-    144, 118, 97, 93, 172,
+    172,93,97,118,144,210,
+    87,135,114,150,192,86,
+    88,91,95,101,99,94,
+    105,105,109,96,134,
+    138,167,125,106,196
 };//到下一站的运行时间
-double headwayT = 180;//ht
+double headwayT = 120;//ht
 double headwayS = 600;//hs
 double tSum[maxLimit];
 double tSumMax;
 double peopleNumP[maxLimit][maxLimit];//等待乘客数
 double peopleNumPP[maxLimit][maxLimit];//超出Cmax的乘客数
 double peopleNumS[maxLimit][maxLimit];//滞留乘客数
-int stationFlowID[1] = { 22 };//大客流车站id，按顺序写
+int stationFlowID[1] = { 6 };//大客流车站id，按顺序写
 int stationFlowNum;//大客流车站数量
 double Cmax[maxLimit];
 double alphaC = 0;
@@ -101,10 +82,13 @@ int stationSpareidEvery;
 int vehicleSpareidEvery;
 int depth = 0;
 double startendTime[2] = { 7200, 9000 };
+int stationFlowOnly = 1;//只计算大客流车站的客流
+double perT1 = 0.0;
+double perT3 = 0.0;
 
 double PeopleFlow(double t, int idStation) {//客流量函数，为每个站点分配自己的关于t的一元函数
     if (t >= startendTime[0] && t < startendTime[1]) {
-        if (idStation == 22) {
+        if (idStation == 6) {
             if (t >= 7200 && t < 7500) {
                 return 6.5;
             }
@@ -124,7 +108,7 @@ double PeopleFlow(double t, int idStation) {//客流量函数，为每个站点分配自己的关
                 return 4.51;
             }
         }
-        else if (idStation == 23 || idStation == 24) {
+        else if (idStation == 4 || idStation == 5) {
             if (t >= 7200 && t < 7500) {
                 return 5.08;
             }
@@ -220,8 +204,8 @@ double PeolpleNumStation_1(double t, int idStation) {
     return 0;
 }
 
-void PeolpleNumStation(double departTime[maxLimit][maxLimit], double arriveTime[maxLimit][maxLimit]) {
-    for (int i = 0; i < vehicleNum + 1; i++) {//多了一辆备用车
+void PeolpleNumStation(double departTime[maxLimit][maxLimit], double arriveTime[maxLimit][maxLimit], int per) {
+    for (int i = 0; i < vehicleNum + per; i++) {//多了一辆备用车
         for (int j = 0; j < stationNum; j++) {
             if (i == 0) {
                 if (departTime[i][j] != -1) {
@@ -245,6 +229,10 @@ void PeolpleNumStation(double departTime[maxLimit][maxLimit], double arriveTime[
                         peopleNumP[i][j] = Integral(PeopleFlow, aTime, bTime, integralNum, j);
                     }
                 }
+            }
+
+            if (peopleNumP[i][j] < 0) {
+                peopleNumP[i][j] = 0;
             }
 
             if (peopleNumP[i][j] > alphaC * Cmax[j]) {
@@ -306,7 +294,7 @@ double Constraint(int vehicleSpareid, int stationSpareid) {//可行域条件
             }
         }
     }
-    return value * 1e100;
+    return value * maxValue;
 }
 
 /*
@@ -327,8 +315,14 @@ double Function_tsum(const gsl_vector* x, void* params) {
     for (int i = 0; i < vehicleNum + 1; i++) {
         for (int j = 0; j < stationNum; j++) {
             if (i < vehicleSpareid) {
-                arriveTime[i][j] = arriveTimePre[i][j];
-                departTime[i][j] = departTimePre[i][j];
+                if (j == 0) {
+                    arriveTime[i][j] = arriveTimePre[i][j];
+                    departTime[i][j] = arriveTime[i][j] + dwellTime[j];
+                }
+                else {
+                    arriveTime[i][j] = departTime[i][j - 1] + runTime[j - 1];
+                    departTime[i][j] = arriveTime[i][j] + dwellTime[j];
+                }
             }
             else if (i == vehicleSpareid) {
                 if (j < stationSpareid) {
@@ -381,11 +375,11 @@ double Function_tsum(const gsl_vector* x, void* params) {
     double t2 = 0.0;
     double t3 = 0.0;
     //站点人数约束
-    PeolpleNumStation(departTime, arriveTime);
+    PeolpleNumStation(departTime, arriveTime, 1);
     for (int i = 1; i < vehicleNum + 1; i++) {//不考虑等第一辆车的人，因为会导致最后一站的等待人数过多
         for (int j = 0; j < stationNum; j++) {
             if (peopleNumP[i][j] > Cmax[j]) {
-                t3 += 1e100 * (peopleNumP[i][j] - Cmax[j]);
+                t3 += maxValue * (peopleNumP[i][j] - Cmax[j]);
             }
         }
     }
@@ -412,7 +406,7 @@ double Function_tsum(const gsl_vector* x, void* params) {
                     }
                 }
                 //计算t3
-                if (j == idk) {
+                if (j == idk || stationFlowOnly == 0) {
                     if (i == 0) {
                         if (arriveTime[i][j] != -1) {
                             t3 += peopleNumPP[i][j] * (arriveTime[i][j] -
@@ -443,6 +437,21 @@ double Function_tsum(const gsl_vector* x, void* params) {
             }
         }
     }
+    //for (int j = 0; j < stationNum - 1; j++) {
+    //    for (int k = 0; k < stationFlowNum; k++) {
+    //        int idk = stationFlowID[k];
+    //        if (j == idk || stationFlowOnly == 0) {
+    //            int i = vehicleNum;
+    //            if (i < 0) {
+    //                i = 0;
+    //            }
+    //            double res = Integral(PeopleFlow, departTime[i][j], startendTime[1], integralNum, j);
+    //            if (res > 0) {
+    //                t3 += gamma * res;
+    //            }
+    //        }
+    //    }
+    //}
 
     double tSum_functemp[maxLimit] = { 0 };
     for (int j = 0; j < stationNum; j++) {
@@ -458,7 +467,8 @@ double Function_tsum(const gsl_vector* x, void* params) {
             temptSum = tSum_functemp[i];
         }
     }
-    return temptSum + constraintValue;
+    //return temptSum + constraintValue;
+    return alpha* t1 + beta * t2 + gamma * t3 + constraintValue;
 }
 
 int* returnColumnSizes;
@@ -527,6 +537,7 @@ void Solve() {
                 int iter = 0;
                 int status;
                 const int n = vehicleNum + 1 - i_2;
+                //const int n = vehicleNum + 1;
                 double acc = 0.01;//迭代精度
                 double tolerance = 1e-4;//收敛条件
                 int iterMax = 1000;//最大迭代次数
@@ -547,7 +558,11 @@ void Solve() {
                         gsl_vector_set(x, i_3, time + dwellOut + headwayTOut);
                     }
                     else if (i_3 == 0 && i_2 == 0) {
-                        gsl_vector_set(x, i_3, 0);
+                        double time = Inspect(arriveTimePre, i_2 + i_3, stationSpareid, -1);
+                        if (time == -1) {
+                            time = 0;
+                        }
+                        gsl_vector_set(x, i_3, time);
                     }
                     else if (i_3 == 0 && i_2 == vehicleNum) {
                         double time = Inspect(arriveTimePre, i_2 + i_3 - 1, stationSpareid, -1);
@@ -561,9 +576,10 @@ void Solve() {
                         if (time == -1) {
                             time = 0;
                         }
-                        if (preValue - time < headwayT + dwellTime[0]) {
-                            headwayTOut += headwayT + dwellTime[0];
-                        }
+                        //if (preValue - time < headwayT + dwellTime[0]) {
+                        //    headwayTOut += headwayT + dwellTime[0];
+                        //    preValue = time;
+                        //}
                         gsl_vector_set(x, i_3, time + dwellOut + dwellSpareOut + headwayT + headwayTOut);
                     }
                     else {
@@ -571,9 +587,10 @@ void Solve() {
                         if (time == -1) {
                             time = 0;
                         }
-                        if (preValue - time < headwayT + dwellTime[0]) {
-                            headwayTOut += headwayT + dwellTime[0];
-                        }
+                        //if (preValue - time < headwayT + dwellTime[0]) {
+                        //    headwayTOut += headwayT + dwellTime[0];
+                        //    preValue = time;
+                        //}
                         gsl_vector_set(x, i_3, time + dwellOut + dwellSpareOut + headwayTOut);
                     }
                     gsl_vector_set(accn, i_3, acc);
@@ -624,11 +641,11 @@ void Solve() {
             tSum[stationSpareid] = tSum_i2;
             printf("投放备用车车站:%d%s 备用车id:%d%s\n", stationSpareid, stationSpared, vehicleSpareID, vehicleSpared);
             if (iterbool == 0) {
-                printf("存在迭代未收敛的情况(可能是没有找到比初始值更优的解),初始函数值为:% .2f\n", tSum_i2);
+                printf("存在迭代未收敛的情况(可能是没有找到比初始值更优的解),初始函数值为:%.2f,优化效果:%.2f%%\n", tSum_i2, (alpha* perT1 + gamma * perT3 - tSum_i2)/ (alpha * perT1 + gamma * perT3) *100);
             }
             else if (iterbool == 1) {
-                printf("目标函数:%.2f 每次迭代均已收敛且平均迭代次数:%d\n",
-                    tSum[stationSpareid], iterSum / (vehicleNum + 1));
+                printf("目标函数值:%.2f,每次迭代均已收敛且平均迭代次数:%d,优化效果:%.2f%%\n",
+                    tSum[stationSpareid], iterSum / (vehicleNum + 1), (alpha* perT1 + gamma * perT3 - tSum[stationSpareid]) / (alpha * perT1 + gamma * perT3) * 100);
             }
             {
                 printf("到达时间:(-1表示不经过此站)\n");
@@ -645,7 +662,7 @@ void Solve() {
                     }
                     printf("\n");
                 }
-                PeolpleNumStation(departTimeResult[stationSpareid], arriveTimeResult[stationSpareid]);
+                PeolpleNumStation(departTimeResult[stationSpareid], arriveTimeResult[stationSpareid], 1);
                 printf("各站点在下一辆列车到站前的等待乘客数:\n");
                 for (int i = 0; i < vehicleNum + 1; i++) {
                     for (int j = 0; j < stationNum; j++) {
@@ -693,6 +710,97 @@ int main() {
     //int** stationSpareIDCombine = subsets(stationSpareID, stationSpareNum, &returnSize);
     //保证投放车站在所有大客流车站之前?undo
     
+    for (int i = 0; i < vehicleNum; i++) {
+        for (int j = 0; j < stationNum; j++) {
+            if (j == 0) {
+                arriveTime[i][j] = arriveTimePre[i][j];
+                departTime[i][j] = arriveTime[i][j] + dwellTime[j];
+            }
+            else {
+                arriveTime[i][j] = departTime[i][j - 1] + runTime[j - 1];
+                departTime[i][j] = arriveTime[i][j] + dwellTime[j];
+            }
+        }
+    }
+    PeolpleNumStation(departTime, arriveTime, 0);
+    for (int i = 1; i < vehicleNum; i++) {//不考虑等第一辆车的人，因为会导致最后一站的等待人数过多
+        for (int j = 0; j < stationNum; j++) {
+            if (peopleNumP[i][j] > Cmax[j]) {
+                perT3 += maxValue * (peopleNumP[i][j] - Cmax[j]);
+            }
+        }
+    }
+    for (int i = 0; i < vehicleNum; i++) {
+        for (int j = 0; j < stationNum - 1; j++) {
+            for (int k = 0; k < stationFlowNum; k++) {
+                int idk = stationFlowID[k];
+                if (i == 0) {
+                    if (arriveTime[i][idk] != -1) {
+                        perT1 += peopleNumP[i][j] * (arriveTime[i][idk] - 0) / 2
+                            + peopleNumS[i][j] * (arriveTime[i][idk] - 0);
+                    }
+                }
+                else {
+                    double tempdepartTime = Inspect(departTime, i - 1, idk, -1);
+                    double temparriveTime = Inspect(arriveTime, i, idk, 1);
+                    if (tempdepartTime == -1) {
+                        tempdepartTime = 0;
+                    }
+                    if (temparriveTime != -1) {
+                        perT1 += peopleNumP[i][j] * (temparriveTime - tempdepartTime) / 2
+                            + peopleNumS[i][j] * (temparriveTime - tempdepartTime);
+                    }
+                }
+                //计算t3
+                if (j == idk || stationFlowOnly == 0) {
+                    if (i == 0) {
+                        if (arriveTime[i][j] != -1) {
+                            if (IntegralSolve(PeopleFlow, 0, arriveTime[i][j], integralNum, j, alphaC * Cmax[j])
+                                != 0) {
+                                perT3 += 0;
+                            }
+                            if (peopleNumPP[i][j] != peopleNumP[i][j]) {
+                                perT3 += 0;
+                            }
+                            perT3 += peopleNumPP[i][j] * (arriveTime[i][j] -
+                                IntegralSolve(PeopleFlow, 0, arriveTime[i][j], integralNum, j, alphaC * Cmax[j])) / 2;
+                        }
+                    }
+                    else {
+                        double tempdepartTime = Inspect(departTime, i - 1, j, -1);
+                        double temparriveTime = Inspect(arriveTime, i, j, 1);
+                        if (tempdepartTime != -1) {
+                            if (IntegralSolve(PeopleFlow, tempdepartTime, temparriveTime, integralNum, j, alphaC * Cmax[j])
+                                != Inspect(departTime, i - 1, idk, -1)) {
+                                perT3 += 0;
+                            }
+                            if (peopleNumPP[i][j] != peopleNumP[i][j]) {
+                                perT3 += 0;
+                            }
+                            perT3 += peopleNumPP[i][j] * (temparriveTime -
+                                IntegralSolve(PeopleFlow, tempdepartTime, temparriveTime, integralNum, j, alphaC * Cmax[j])) / 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    //for (int j = 0; j < stationNum - 1; j++) {
+    //    for (int k = 0; k < stationFlowNum; k++) {
+    //        int idk = stationFlowID[k];
+    //        if (j == idk || stationFlowOnly == 0) {
+    //            int i = vehicleNum - 1;
+    //            if (i < 0) {
+    //                i = 0;
+    //            }
+    //            double res = Integral(PeopleFlow, departTime[i][j], startendTime[1], integralNum, j);
+    //            if (res > 0) {
+    //                perT3 += gamma * res;
+    //            }
+    //        }
+    //    }
+    //}
+    printf("原时刻表的函数值为:% .2f\n", alpha * perT1 + gamma * perT3);
     for (int i = 0; i < 1; i++) {
         Solve();
         for (int i = 0; i < vehicleNum + 1; i++) {
